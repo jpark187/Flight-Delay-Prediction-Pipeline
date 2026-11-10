@@ -2,3 +2,6 @@ utc_end,mode,job,seconds,cluster_shape
 2026-11-10T03:05:32Z,sample,flights_to_parquet,193,1 x e2-standard-4
 2026-11-10T03:07:13Z,sample,weather_clean,101,1 x e2-standard-4
 2026-11-10T03:11:13Z,sample,join_flights_weather,240,1 x e2-standard-4
+2026-11-10T03:35:12Z,sample,flights_to_parquet,182,1 x e2-standard-4
+2026-11-10T03:36:57Z,sample,weather_clean,105,1 x e2-standard-4
+2026-11-10T03:40:46Z,sample,join_flights_weather,229,1 x e2-standard-4

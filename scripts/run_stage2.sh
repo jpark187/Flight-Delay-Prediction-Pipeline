@@ -29,6 +29,7 @@ run_job weather_clean
 run_job join_flights_weather
 
 echo "== copying check tables to results/"
+rm -rf results/join_coverage results/source_overlap
 gcloud storage cp -r "${BUCKET}/curated/checks/*" results/ 2>/dev/null || true
 [ "${KEEP_CLUSTER:-0}" = "1" ] || scripts/delete_cluster.sh
 echo "== timings"; column -s, -t < results/stage2_timings.csv
