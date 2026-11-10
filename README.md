@@ -122,9 +122,7 @@ See `prompts.md`.
 
 # Flight Delay Risk: Project Roadmap
 
-ADSP 32030 · Final project · Final submission Friday, December 11, 11:59 PM CT
-
-This roadmap is written to satisfy both requirement documents received so far: the course PDF that the proposal was approved against (100 points, three platforms from three weeks, one measured scaling decision) and the 200-point rubric (EDA, queries, class-tool list, findings). Where they differ, the plan does both. One open item: confirm with Jan which document governs grading.
+ADSP 32030 · Final project 
 
 ## 1. The problem
 
