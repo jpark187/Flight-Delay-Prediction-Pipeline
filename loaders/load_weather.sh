@@ -14,7 +14,7 @@ source "$(dirname "$0")/../env.sh"           # BUCKET=gs://...
 START_YEAR=${START_YEAR:-1987}
 END_YEAR=${END_YEAR:-2025}
 AIRPORTS=${AIRPORTS:-}                        # optional comma-separated IATA filter
-PARALLEL=${PARALLEL:-8}
+PARALLEL=${PARALLEL:-16}
 
 # NOAA Open Data mirror on AWS (no credentials, fast), with NCEI itself as fallback.
 export S3_BASE="https://noaa-ghcnh-pds.s3.amazonaws.com/hourly/access/by-year"
@@ -34,14 +34,25 @@ PY
 )
 echo "$(echo "$TARGETS" | grep -c .) airports selected"
 
+get() {   # get URL OUT -> prints HTTP status; hard time limits so a stalled server can't hang a worker
+  curl -sS -L --connect-timeout 20 --max-time 300 --retry 3 --retry-delay 5 \
+       -o "$2" -w '%{http_code}' "$1" 2>/dev/null || echo "000"
+}
+export -f get
+
 fetch_airport() {   # $1=IATA $2=candidates ; uses YEAR, OUTDIR
-  local iata=$1 cands=$2 s f tmp
+  local iata=$1 cands=$2 s f tmp code
   for s in ${cands//;/ }; do
     f="GHCNh_${s}_${YEAR}.parquet"
     if [ -s "$OUTDIR/$f" ]; then echo "$iata,$YEAR,$s" > "$OUTDIR/m/$iata"; return; fi
     tmp="$OUTDIR/.tmp.$iata.$f"
-    if curl -fsSL --retry 3 --retry-delay 5 -o "$tmp" "$S3_BASE/$YEAR/parquet/$f" 2>/dev/null \
-       || curl -fsSL --retry 3 --retry-delay 5 -o "$tmp" "$NCEI_BASE/$YEAR/parquet/$f" 2>/dev/null; then
+    code=$(get "$S3_BASE/$YEAR/parquet/$f" "$tmp")
+    # 404 on the mirror = this station has no file this year; NCEI has the same files, so only
+    # fall back to NCEI when the mirror itself failed (timeouts, 5xx)
+    if [ "$code" != "200" ] && [ "$code" != "404" ]; then
+      code=$(get "$NCEI_BASE/$YEAR/parquet/$f" "$tmp")
+    fi
+    if [ "$code" = "200" ] && [ -s "$tmp" ]; then
       mv "$tmp" "$OUTDIR/$f"
       echo "$iata,$YEAR,$s" > "$OUTDIR/m/$iata"
       return
@@ -60,6 +71,7 @@ for year in $(seq "$START_YEAR" "$END_YEAR"); do
   fi
   export YEAR=$year OUTDIR="$WORK/$year"
   mkdir -p "$OUTDIR/m"
+  t0=$(date +%s)
   echo "$TARGETS" | grep . | xargs -P "$PARALLEL" -L 1 bash -c 'fetch_airport "$1" "$2"' _
 
   manifest="$WORK/manifest_${year}.csv"
@@ -67,7 +79,7 @@ for year in $(seq "$START_YEAR" "$END_YEAR"); do
   n_files=$(ls "$OUTDIR"/*.parquet 2>/dev/null | wc -l)
   n_ap=$(tail -n +2 "$manifest" | grep -vc ',$' || true)
   n_all=$(tail -n +2 "$manifest" | wc -l)
-  echo "${year}: ${n_files} station files, ${n_ap}/${n_all} airports with weather"
+  echo "${year}: ${n_files} station files, ${n_ap}/${n_all} airports with weather ($(( $(date +%s) - t0 ))s, $(date -u +%H:%MZ))"
   missing=$(tail -n +2 "$manifest" | { grep ',$' || true; } | cut -d, -f1 | tr '\n' ' ')
   [ -n "$missing" ] && echo "  no weather: ${missing}"
 
