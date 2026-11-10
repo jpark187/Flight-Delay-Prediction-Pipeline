@@ -12,7 +12,7 @@ echo "== 1/3 reference tables: airport -> weather station, airport -> time zone"
 python3 loaders/build_station_map.py
 pip install --user --quiet airportsdata 2>/dev/null || pip install --quiet airportsdata --break-system-packages
 python3 loaders/build_airport_tz.py
-gcloud storage cp reference/airport_station_map.csv reference/airport_tz.csv "${BUCKET}/reference/"
+gcloud storage cp reference/airport_station_map.csv reference/airport_tz.csv reference/airport_alias.csv "${BUCKET}/reference/"
 
 case "$MODE" in
   sample)

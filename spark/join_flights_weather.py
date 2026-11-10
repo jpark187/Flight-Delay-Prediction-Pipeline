@@ -19,6 +19,9 @@ flights = spark.read.parquet(f"{base}/curated/flights")
 weather = spark.read.parquet(f"{base}/curated/weather_hourly")
 tz = (spark.read.option("header", True).csv(f"{base}/reference/airport_tz.csv")
       .select(F.col("iata").alias("origin"), "tz"))
+# older airport codes used by BTS (e.g. PBI) -> the code the weather manifest uses (DJT)
+alias = (spark.read.option("header", True).csv(f"{base}/reference/airport_alias.csv")
+         .select("code", "ref_code"))
 man_dir = "manifest_sample" if args.mode == "sample" else "manifest"
 manifest = (spark.read.option("header", True).csv(f"{base}/weather/{man_dir}/*.csv")
             .filter(F.col("ghcn_id").isNotNull() & (F.col("ghcn_id") != ""))
@@ -44,12 +47,16 @@ WX = ["temp_c", "dewpoint_c", "rel_humidity", "wind_dir_deg", "wind_speed_ms", "
       "visibility_km", "ceiling_m", "precip_mm", "snow_depth_cm", "sea_level_hpa", "pres_wx"]
 
 def attach(df, airport_col, prefix):
-    m = F.broadcast(manifest.withColumnRenamed("iata", airport_col)
+    key = f"{prefix}airport_key"
+    a = F.broadcast(alias.withColumnRenamed("code", airport_col).withColumnRenamed("ref_code", key))
+    df = (df.join(a, airport_col, "left")
+            .withColumn(key, F.coalesce(F.col(key), F.col(airport_col))))
+    m = F.broadcast(manifest.withColumnRenamed("iata", key)
                     .withColumnRenamed("station", f"{prefix}station"))
     wx = weather.select(F.col("station").alias(f"{prefix}station"),
                         F.col("hour_utc").alias("wx_hour_utc"),
                         *[F.col(c).alias(prefix + c) for c in WX])
-    return (df.join(m, [airport_col, "wx_year"], "left")
+    return (df.join(m, [key, "wx_year"], "left").drop(key)
               .join(wx, [f"{prefix}station", "wx_hour_utc"], "left"))
 
 out = attach(attach(f, "origin", "o_"), "dest", "d_")
