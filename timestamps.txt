@@ -1,3 +1,5 @@
 2026-11-08T23:30:05Z  CREATE  bucket/flight-delay-risk-jdp
 2026-11-09T04:19:34Z  CREATE  vm/faa-poller
 2026-11-09T04:24:39Z  CREATE  vm/flights-loader
+2026-11-10T03:02:19Z  CREATE  dataproc/flights-spark (sample)
+2026-11-10T03:12:14Z  DELETE  dataproc/flights-spark

@@ -8,7 +8,7 @@ source env.sh
 MODE=${1:-sample}
 CLUSTER=${CLUSTER:-flights-spark}
 mkdir -p results
-[ -f results/stage2_timings.csv ] || echo "utc_start,mode,job,seconds,cluster_shape" > results/stage2_timings.csv
+[ -f results/stage2_timings.csv ] || echo "utc_end,mode,job,seconds,cluster_shape" > results/stage2_timings.csv
 SHAPE=$([ "$MODE" = sample ] && echo "1 x e2-standard-4" || echo "e2-standard-2 + ${WORKERS:-2} x ${WORKER_TYPE:-e2-standard-4}")
 
 scripts/create_cluster.sh "$MODE"
