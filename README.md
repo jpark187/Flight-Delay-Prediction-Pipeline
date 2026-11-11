@@ -100,6 +100,19 @@ WORKERS=3 scripts/stage2_status.sh           # until DONE
 source env.sh && python3 eda/eda_full.py     # charts + summary in results/eda_full/
 ```
 
+## Stage 4 · Features (Spark on Dataproc)
+
+`spark/build_features.py` builds one row per operated flight for 2018–2025 using only information
+available before departure: schedule, rolling late rates over the days *before* the flight
+(route, origin, origin × hour, destination, carrier; sparse routes shrunk toward the origin),
+aircraft rotation from the schedule, and decoded origin/destination weather. Split: train 2018,
+2019, 2021–2023; 2020 flagged; valid 2024; test 2025.
+
+```bash
+WORKERS=3 scripts/run_workflow.sh features build_features    # no open terminal needed
+WORKERS=3 scripts/stage2_status.sh                            # until DONE
+```
+
 ### Bucket layout
 
 ```
