@@ -8,3 +8,5 @@
 2026-11-11T05:26:06Z  DELETE  vm/flights-loader
 2026-11-11T05:35:33Z  CREATE  dataproc/flights-wf (full, workflow; cluster auto-deleted at end)
 2026-11-11T18:51:37Z  DELETE  dataproc/flights-wf-llb7jxlcybroy (deleted by Dataproc at end of workflow b530f7ea-5422-3a3b-bd7f-2fe718af31f3)
+2026-11-11T19:13:58Z  CREATE  dataproc/flights-wf (eda-full workflow; cluster auto-deleted at end)
+2026-11-11T21:21:43Z  DELETE  dataproc/flights-wf-ieg4yf2poquvq (deleted by Dataproc at end of workflow 3cd07bd7-8ee5-3f8a-b019-5cd6432455aa)

@@ -54,7 +54,7 @@ fi
 if ! grep -q "workflow $OP" timestamps.txt 2>/dev/null; then
   echo "== finished: recording timings and copying check tables"
   [ -f results/stage2_timings.csv ] || echo "utc_end,mode,job,seconds,cluster_shape" > results/stage2_timings.csv
-  declare -A NAME=([flights]=flights_to_parquet [weather]=weather_clean [join]=join_flights_weather)
+  declare -A NAME=([flights]=flights_to_parquet [weather]=weather_clean [join]=join_flights_weather [eda]=eda_aggregates)
   while IFS=, read -r end step secs; do
     echo "$end,full,${NAME[$step]:-$step},$secs,$SHAPE" >> results/stage2_timings.csv
   done < /tmp/wf_rows.csv

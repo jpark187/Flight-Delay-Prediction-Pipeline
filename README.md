@@ -91,6 +91,15 @@ pip install --user duckdb pandas matplotlib
 source env.sh && python3 eda/eda_2024.py      # charts + summary in results/eda/
 ```
 
+Full history (230M flights) is too big for Cloud Shell, so Spark computes small aggregate tables
+on a cluster and the charts are drawn locally from those:
+
+```bash
+WORKERS=3 scripts/run_eda_workflow.sh       # Dataproc workflow, ~30-45 min, cluster auto-deleted
+WORKERS=3 scripts/stage2_status.sh           # until DONE
+source env.sh && python3 eda/eda_full.py     # charts + summary in results/eda_full/
+```
+
 ### Bucket layout
 
 ```
