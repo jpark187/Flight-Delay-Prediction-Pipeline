@@ -47,9 +47,9 @@ fetch_airport() {   # $1=IATA $2=candidates ; uses YEAR, OUTDIR
     if [ -s "$OUTDIR/$f" ]; then echo "$iata,$YEAR,$s" > "$OUTDIR/m/$iata"; return; fi
     tmp="$OUTDIR/.tmp.$iata.$f"
     code=$(get "$S3_BASE/$YEAR/parquet/$f" "$tmp")
-    # 404 on the mirror = this station has no file this year; NCEI has the same files, so only
-    # fall back to NCEI when the mirror itself failed (timeouts, 5xx)
-    if [ "$code" != "200" ] && [ "$code" != "404" ]; then
+    # The mirror does not hold every year NCEI does, so any miss there falls back to NCEI.
+    # Both calls have hard time limits (see get), so a slow server can no longer stall a worker.
+    if [ "$code" != "200" ]; then
       code=$(get "$NCEI_BASE/$YEAR/parquet/$f" "$tmp")
     fi
     if [ "$code" = "200" ] && [ -s "$tmp" ]; then
@@ -76,7 +76,7 @@ for year in $(seq "$START_YEAR" "$END_YEAR"); do
 
   manifest="$WORK/manifest_${year}.csv"
   { echo "iata,year,ghcn_id"; cat "$OUTDIR"/m/* | sort; } > "$manifest"
-  n_files=$(ls "$OUTDIR"/*.parquet 2>/dev/null | wc -l)
+  n_files=$(find "$OUTDIR" -maxdepth 1 -name '*.parquet' | wc -l)   # (ls exits 2 on zero files)
   n_ap=$(tail -n +2 "$manifest" | grep -vc ',$' || true)
   n_all=$(tail -n +2 "$manifest" | wc -l)
   echo "${year}: ${n_files} station files, ${n_ap}/${n_all} airports with weather ($(( $(date +%s) - t0 ))s, $(date -u +%H:%MZ))"
@@ -85,8 +85,12 @@ for year in $(seq "$START_YEAR" "$END_YEAR"); do
 
   if [ "$n_files" -gt 0 ]; then
     gcloud storage cp "$OUTDIR"/*.parquet "$dest"
+  else
+    echo "  WARNING: no files downloaded for ${year}; check: curl -sI $S3_BASE/${year}/parquet/"
   fi
-  if [ -z "$AIRPORTS" ]; then                  # full run: authoritative manifest + done marker
+  if [ -z "$AIRPORTS" ] && [ "$n_files" -eq 0 ]; then
+    echo "  ${year} NOT marked complete (no files); it will be retried on the next run"
+  elif [ -z "$AIRPORTS" ]; then                # full run: authoritative manifest + done marker
     gcloud storage cp "$manifest" "${BUCKET}/weather/manifest/${year}.csv"
     echo "$n_files station files" | gcloud storage cp - "${dest}_COMPLETE"
   else                                         # sample run: separate manifest, never overwrites full
