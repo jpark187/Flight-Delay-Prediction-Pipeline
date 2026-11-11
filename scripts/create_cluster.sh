@@ -23,6 +23,6 @@ else
   gcloud dataproc clusters create "$CLUSTER" "${common[@]}" \
       --master-machine-type=e2-standard-2 \
       --num-workers="${WORKERS:-2}" --worker-machine-type="${WORKER_TYPE:-e2-standard-4}" \
-      --worker-boot-disk-type=pd-standard --worker-boot-disk-size=50GB
+      --worker-boot-disk-type=pd-balanced --worker-boot-disk-size=100GB
 fi
 scripts/log_time.sh CREATE "dataproc/$CLUSTER ($MODE)"

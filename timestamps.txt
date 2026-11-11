@@ -5,3 +5,5 @@
 2026-11-10T03:12:14Z  DELETE  dataproc/flights-spark
 2026-11-10T03:32:10Z  CREATE  dataproc/flights-spark (sample)
 2026-11-10T03:41:47Z  DELETE  dataproc/flights-spark
+2026-11-11T05:26:06Z  DELETE  vm/flights-loader
+2026-11-11T05:35:33Z  CREATE  dataproc/flights-wf (full, workflow; cluster auto-deleted at end)
