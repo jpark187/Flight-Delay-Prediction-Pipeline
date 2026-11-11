@@ -1,62 +1,66 @@
 #!/usr/bin/env bash
-# stage2_status.sh - progress of the Stage 2 workflow; when finished, record job timings in
-# results/stage2_timings.csv and copy the check tables into results/.
+# stage2_status.sh [OPERATION_ID] - progress of the Stage 2 workflow started by
+# run_stage2_workflow.sh (operation id saved in results/.last_workflow_op). When it has finished,
+# records job run times in results/stage2_timings.csv, copies the check tables into results/
+# and logs the cluster deletion in timestamps.txt (once).
 set -uo pipefail
 cd "$(dirname "$0")/.."
 source env.sh
+OP=${1:-$(cat results/.last_workflow_op 2>/dev/null)}
+[ -n "$OP" ] || { echo "usage: $0 OPERATION_ID (from the 'Instantiating ... operation [...]' line)"; exit 1; }
+SHAPE="e2-standard-2 + ${WORKERS:-2} x ${WORKER_TYPE:-e2-standard-4} (workflow)"
 
-echo "== cluster"
-gcloud dataproc clusters list --region="$REGION" --filter="clusterName ~ ^flights-wf" \
-    --format="table(clusterName,status.state,config.workerConfig.numInstances)" 2>/dev/null \
-  | grep . || echo "(none running: not started yet, or finished and deleted)"
+gcloud dataproc operations describe "$OP" --region="$REGION" --format=json > /tmp/wf_op.json || exit 1
+python3 - << 'PY' > /tmp/wf_jobs.txt
+import json
+op = json.load(open("/tmp/wf_op.json"))
+m = op.get("metadata", {})
+print("STATE", m.get("state", "?"), "DONE" if op.get("done") else "NOTDONE",
+      "ERROR" if op.get("error") else "OK", m.get("clusterName", "-"))
+if op.get("error"):
+    print("ERRMSG", op["error"].get("message", "")[:400].replace("\n", " "))
+for n in m.get("graph", {}).get("nodes", []):
+    print("NODE", n["stepId"], n.get("state", "?"), n.get("jobId", "-"))
+PY
+read -r _ WSTATE WDONE WERR WCLUSTER < <(grep ^STATE /tmp/wf_jobs.txt)
+echo "== workflow $OP: $WSTATE (cluster ${WCLUSTER})"
+grep ^ERRMSG /tmp/wf_jobs.txt | cut -d" " -f2-
 
-echo "== jobs (most recent workflow)"
-gcloud dataproc jobs list --region="$REGION" --filter="placement.clusterName ~ ^flights-wf" \
-    --format=json --limit=20 > /tmp/wf_jobs.json 2>/dev/null || echo "[]" > /tmp/wf_jobs.json
-python3 - << 'PY'
+: > /tmp/wf_rows.csv
+while read -r _ step state job; do
+  secs="-"; end="-"
+  if [ "$job" != "-" ]; then
+    gcloud dataproc jobs describe "$job" --region="$REGION" --format=json > /tmp/wf_job.json 2>/dev/null
+    read -r end secs < <(python3 - << 'PY'
 import json, datetime as dt
-jobs = json.load(open("/tmp/wf_jobs.json"))
-def t(s): return dt.datetime.fromisoformat(s.replace("Z", "+00:00"))
-latest = {}
-for j in jobs:                      # newest job per step
-    step = j["reference"]["jobId"].rsplit("-", 1)[0]
-    if step not in latest or j["status"]["stateStartTime"] > latest[step]["status"]["stateStartTime"]:
-        latest[step] = j
-rows = []
-for step, j in sorted(latest.items()):
-    state = j["status"]["state"]
-    hist = j.get("statusHistory", [])
-    start = next((h["stateStartTime"] for h in hist if h["state"] == "RUNNING"), None)
-    end = j["status"]["stateStartTime"] if state in ("DONE", "ERROR", "CANCELLED") else None
-    secs = int((t(end) - t(start)).total_seconds()) if start and end else None
-    rows.append((step, state, end or "-", secs, j["placement"]["clusterName"]))
-    print(f"  {step:<10} {state:<10} started {start or '-':<28} seconds {secs if secs is not None else '-'}")
-    if state == "ERROR":
-        print("    details:", j["status"].get("details", "")[:300])
-json.dump(rows, open("/tmp/wf_rows.json", "w"))
+j = json.load(open("/tmp/wf_job.json"))
+t = lambda s: dt.datetime.fromisoformat(s.replace("Z", "+00:00"))
+start = next((h["stateStartTime"] for h in j.get("statusHistory", []) if h["state"] == "RUNNING"), None)
+st = j["status"]
+end = st["stateStartTime"] if st["state"] in ("DONE", "ERROR", "CANCELLED") else None
+print(end or "-", int((t(end) - t(start)).total_seconds()) if start and end else "-")
 PY
-
-ALLDONE=$(python3 -c "import json; r=json.load(open('/tmp/wf_rows.json')); print(int(len(r)>=3 and all(x[1]=='DONE' for x in r)))")
-WFCLUSTER=$(python3 -c "import json; r=json.load(open('/tmp/wf_rows.json')); print(r[0][4] if r else '')")
-STILL_UP=$(gcloud dataproc clusters list --region="$REGION" --filter="clusterName ~ ^flights-wf" --format="value(clusterName)" 2>/dev/null)
-if [ "$ALLDONE" = "1" ] && [ -z "$STILL_UP" ]; then
-  if ! grep -q "DELETE  dataproc/${WFCLUSTER}" timestamps.txt 2>/dev/null; then
-    echo "== finished: recording timings and copying check tables"
-    mkdir -p results
-    [ -f results/stage2_timings.csv ] || echo "utc_end,mode,job,seconds,cluster_shape" > results/stage2_timings.csv
-    SHAPE="e2-standard-2 + ${WORKERS:-2} x ${WORKER_TYPE:-e2-standard-4} (workflow)"
-    python3 - "$SHAPE" << 'PY' >> results/stage2_timings.csv
-import json, sys
-names = {"flights": "flights_to_parquet", "weather": "weather_clean", "join": "join_flights_weather"}
-for step, state, end, secs, cluster in json.load(open("/tmp/wf_rows.json")):
-    print(f"{end},full,{names.get(step, step)},{secs},{sys.argv[1]}")
-PY
-    rm -rf results/join_coverage results/source_overlap
-    gcloud storage cp -r "${BUCKET}/curated/checks/*" results/ 2>/dev/null
-    scripts/log_time.sh DELETE "dataproc/${WFCLUSTER} (workflow finished; cluster deleted by Dataproc)"
+)
   fi
-  echo "== timings"; column -s, -t < results/stage2_timings.csv
-  echo "== coverage by year"; column -s, -t < results/join_coverage/*.csv | head -45
-elif [ "$ALLDONE" != "1" ]; then
-  echo "(still running or failed: run this again later)"
+  printf "  %-8s %-10s %-24s seconds %s\n" "$step" "$state" "$job" "$secs"
+  echo "$end,$step,$secs" >> /tmp/wf_rows.csv
+done < <(grep ^NODE /tmp/wf_jobs.txt)
+
+if [ "$WDONE" != "DONE" ]; then echo "(still running: check again later)"; exit 0; fi
+if [ "$WERR" = "ERROR" ] || grep -q "^NODE .* FAILED" /tmp/wf_jobs.txt; then
+  echo "!! workflow failed; see the error above. Dataproc has deleted the cluster."; exit 1
 fi
+
+if ! grep -q "workflow $OP" timestamps.txt 2>/dev/null; then
+  echo "== finished: recording timings and copying check tables"
+  [ -f results/stage2_timings.csv ] || echo "utc_end,mode,job,seconds,cluster_shape" > results/stage2_timings.csv
+  declare -A NAME=([flights]=flights_to_parquet [weather]=weather_clean [join]=join_flights_weather)
+  while IFS=, read -r end step secs; do
+    echo "$end,full,${NAME[$step]:-$step},$secs,$SHAPE" >> results/stage2_timings.csv
+  done < /tmp/wf_rows.csv
+  rm -rf results/join_coverage results/source_overlap
+  gcloud storage cp -r "${BUCKET}/curated/checks/*" results/
+  scripts/log_time.sh DELETE "dataproc/${WCLUSTER} (deleted by Dataproc at end of workflow $OP)"
+fi
+echo "== timings"; column -s, -t < results/stage2_timings.csv
+echo "== coverage by year"; column -s, -t < results/join_coverage/*.csv | head -45

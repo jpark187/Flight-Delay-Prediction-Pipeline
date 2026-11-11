@@ -44,7 +44,10 @@ add weather weather_clean
 add join    join_flights_weather flights,weather
 
 echo "== starting workflow (runs in Google Cloud; safe to close this terminal)"
-gcloud dataproc workflow-templates instantiate "$T" --region="$REGION" --async
+out=$(gcloud dataproc workflow-templates instantiate "$T" --region="$REGION" --async 2>&1); echo "$out"
+mkdir -p results
+echo "$out" | grep -o 'operations/[a-z0-9-]*' | head -1 | cut -d/ -f2 > results/.last_workflow_op
+echo "workflow operation: $(cat results/.last_workflow_op)  (saved in results/.last_workflow_op)"
 scripts/log_time.sh CREATE "dataproc/flights-wf ($MODE, workflow; cluster auto-deleted at end)"
 cat << MSG
 
