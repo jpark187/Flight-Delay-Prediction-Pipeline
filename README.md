@@ -113,6 +113,19 @@ WORKERS=3 scripts/run_workflow.sh features build_features    # no open terminal 
 WORKERS=3 scripts/stage2_status.sh                            # until DONE
 ```
 
+### Model (Spark MLlib)
+
+`spark/train_model.py` fits logistic regression on a 30% sample of the training split (two
+variants: with and without weather), compares both against a baseline (the route's 30-day late
+rate), evaluates on 2024, 2025 and 2020, and exports `model/model.json`, which the API scores
+without Spark. A 200-flight scoring sample lets the API test reproduce Spark's probabilities.
+
+```bash
+WORKERS=3 scripts/run_workflow.sh train train_model
+WORKERS=3 scripts/stage2_status.sh            # until DONE
+python3 scripts/show_model_results.py         # metrics, calibration, segments, top inputs
+```
+
 ### Bucket layout
 
 ```
