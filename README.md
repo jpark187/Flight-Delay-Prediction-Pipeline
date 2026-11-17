@@ -126,6 +126,20 @@ WORKERS=3 scripts/stage2_status.sh            # until DONE
 python3 scripts/show_model_results.py         # metrics, calibration, segments, top inputs
 ```
 
+## Stage 5 · MongoDB Atlas (serving store) and cross-checks
+
+Spark builds small JSON-lines documents on the cluster; a Cloud Shell script loads them into an
+Atlas M0 cluster, so Dataproc never holds database credentials. Documents are what the API looks
+up by key on every request (route, airport, carrier); the flight history itself stays in Parquet.
+
+```bash
+WORKERS=3 scripts/run_workflow.sh serving build_serving_docs   # routes, airports, carriers, route_months
+WORKERS=3 scripts/stage2_status.sh                              # until DONE
+pip install --user pymongo duckdb
+source env.sh && python3 scripts/load_mongo.py                  # needs MONGO_URI in env.sh
+source env.sh && python3 scripts/ask_it_twice.py                # ORD 2024: Spark SQL = DuckDB = MQL
+```
+
 ### Bucket layout
 
 ```

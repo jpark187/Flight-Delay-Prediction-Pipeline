@@ -1,0 +1,4 @@
+method,origin,year,flights,late,late_rate
+spark_sql,ORD,2024,275505,65275,0.236929
+duckdb_sql,ORD,2024,275505,65275,0.236929
+mongodb_mql,ORD,2024,275505,65275,0.236929

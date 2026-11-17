@@ -14,3 +14,5 @@
 2026-11-12T19:54:49Z  DELETE  dataproc/flights-wf-yjmkdhiyvf2j6 (deleted by Dataproc at end of workflow 6a00af9e-583a-3c9c-95cd-9a3f5d5b87b6)
 2026-11-16T21:53:14Z  CREATE  dataproc/flights-wf (wf-train workflow; cluster auto-deleted at end)
 2026-11-17T20:23:32Z  DELETE  dataproc/flights-wf-bzot33tllhbru (deleted by Dataproc at end of workflow 0cc72d71-0fa3-3ab6-8bec-5dd16cfaad29)
+2026-11-17T21:50:29Z  CREATE  dataproc/flights-wf (wf-serving workflow; cluster auto-deleted at end)
+2026-11-17T22:18:54Z  DELETE  dataproc/flights-wf-usgebumwabksu (deleted by Dataproc at end of workflow a80106fd-9a38-31bf-913f-56efe2fc94d9)
