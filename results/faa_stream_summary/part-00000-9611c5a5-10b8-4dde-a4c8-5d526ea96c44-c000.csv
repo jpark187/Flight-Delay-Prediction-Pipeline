@@ -1,0 +1,5 @@
+event_type,events,airports,snapshots_processed
+closure,45,17,17290
+delay,189,30,17290
+ground_delay_program,38,12,17290
+ground_stop_programs,88,25,17290

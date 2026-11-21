@@ -12,3 +12,4 @@ utc_end,mode,job,seconds,cluster_shape
 2026-11-11T22:30:00.597653Z,full,build_features,1231,e2-standard-2 + 3 x e2-standard-4 (workflow)
 2026-11-16T22:23:34.210664Z,full,train_model,1449,e2-standard-2 + 3 x e2-standard-4 (workflow)
 2026-11-17T22:07:58.184673Z,full,build_serving_docs,643,e2-standard-2 + 3 x e2-standard-4 (workflow)
+2026-11-21T04:43:53.573242Z,full,stream_faa,802,e2-standard-2 + 0 x e2-standard-4 (workflow)

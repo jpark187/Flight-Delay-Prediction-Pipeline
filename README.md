@@ -140,6 +140,20 @@ source env.sh && python3 scripts/load_mongo.py                  # needs MONGO_UR
 source env.sh && python3 scripts/ask_it_twice.py                # ORD 2024: Spark SQL = DuckDB = MQL
 ```
 
+## Stage 6 · Streaming (Spark Structured Streaming → MongoDB)
+
+`spark/stream_faa.py` reads FAA snapshots from `stream/faa/` as a checkpointed file stream, parses
+every airport event, detects starts and ends by comparing consecutive snapshots, and writes
+`airport_status` (live), `faa_events` (history) and `faa_snapshots` (counts over time) to MongoDB.
+The connection string comes from Secret Manager (`mongo-uri`) at runtime. `PUBLIC_IP=1` gives this
+one short-lived single-node cluster an external IP: Dataproc 2.2 clusters are internal-only by default
+and can reach Google services but not MongoDB Atlas or PyPI.
+
+```bash
+WORKERS=0 PUBLIC_IP=1 scripts/run_workflow.sh faa stream_faa full    # backlog, then stop
+WORKERS=0 PUBLIC_IP=1 scripts/run_workflow.sh faa stream_faa live    # 10-minute live run (demo)
+```
+
 ### Bucket layout
 
 ```

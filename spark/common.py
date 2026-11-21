@@ -6,8 +6,8 @@ from pyspark.sql import SparkSession
 def parse_args(desc):
     p = argparse.ArgumentParser(description=desc)
     p.add_argument("--base", required=True, help="data lake root, e.g. gs://my-bucket")
-    p.add_argument("--mode", choices=["sample", "full"], default="sample",
-                   help="sample = 2024 only; full = Oct 1987 - Dec 2025")
+    p.add_argument("--mode", choices=["sample", "full", "live"], default="sample",
+                   help="sample = 2024 only; full = Oct 1987 - Dec 2025; live = streaming demo")
     return p.parse_args()
 
 
